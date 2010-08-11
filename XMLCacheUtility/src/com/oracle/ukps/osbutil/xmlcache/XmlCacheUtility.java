@@ -17,14 +17,58 @@ import org.apache.xmlbeans.XmlObject;
 /**
  * Main Cache Utility
  * 
- * This class provides the majority of the functionality regarding the caching
- * mechanism.
+ * <p>This class provides the majority of the functionality regarding the caching
+ * mechanism.</p>
  * 
- * This class should not be used directly from Oracle Service Bus. Calls from
- * OSB should be proxied through the XmlCacheUtilityFacade.
+ * <p>This class should not be used directly from Oracle Service Bus. Calls from
+ * OSB should be accessed through the XmlCacheUtilityFacade.</p>
  * 
  * <h2>Configuration</h2>
  *
+ * <p>Configuration is performed via a properties file.</p>
+ * 
+ * <table>
+ * </table>
+ *
+ * <h2>Logging</h2>
+ * 
+ * <p>Logging is implemented using the JDK Logging. This removes the
+ * dependencies on other JAR files making this utility easier to deploy,
+ * especially in OSB.</p>
+ * 
+ * <p>To use the JDK logging only then the normal JDK configuration holds. It
+ * is recommended that you copy the file <i>JRE</i>/lib/logging.properties,
+ * make changes to the copy and specify the properties via the System property
+ * 'java.util.logging.config'. For example: </p>
+ * 
+ * <pre>
+ * -Djava.util.logging.config.file=logging.properties
+ * </pre>
+ * 
+ * <p>In OSB it is recommended that this file be copied to the domain
+ * directory and that the System property is set as described above when
+ * starting the server</p>. 
+ * 
+ * <h3>Loggers</h3>
+ * 
+ * <p>There are two logger associated with this class.</p>
+ * 
+ * <p>The logger <b>com.oracle.ukps.osbutils.XmlCacheUtility</b> (following
+ * the standard JDK logging naming recommendations) is used for normal logging
+ * messages i.e for logging debug, information or error messages from the
+ * utility.</p>
+ * 
+ * <p>The logger <b>com.oracle.ukps.osbutils.XmlCacheUtilty.STATS</b> is a
+ * special logger that is used for logging the cache statistics. Therefore
+ * turning this log on or off in the configuration will determine whether the
+ * statistics are logged. All messages to this log are logged at the INFO
+ * log level. It is recommended that this log is disabled in systems that
+ * require maximum throughput.</p>
+ * 
+ * <h3>Integrating with WebLogic Logging</h3>
+ * 
+ * <p>In OSB this will require
+ * 
  */
 
 public class XmlCacheUtility {
@@ -36,10 +80,19 @@ public class XmlCacheUtility {
 	/** System property name to set the configuration file **/ 
 	public static String CFG_SYSPROP_NAME
 		= "com.oracle.ukps.osbutil.xmlcache.CONFIGFILE";
+	
+	/** The configuration key to set the cache expiry **/
+	public static String CFGKEY_CACHE_EXPIRY = "cache.expiry";
+	
 
+	public static String CFGKEY_CACHE_STATS  = "cache.statistics";
+	
 	/** JDK Logging Logger - Can be configured to use WL Logging Bridge **/
 	private static Logger logger
 		= Logger.getLogger(XmlCacheUtility.class.getName());
+	
+	private static Logger statsLogger
+		= Logger.getLogger(XmlCacheUtility.class.getName() + ".STATS");
 	
 	/** Singleton instance **/
 	private static XmlCacheUtility instance = new XmlCacheUtility();
@@ -59,14 +112,23 @@ public class XmlCacheUtility {
 	/** Configuration properties **/
 	private Properties configuration = new Properties();
 	
-	/** Cache item maximum age (expiry) **/
-	private long expireAfterMillis = 30000;
+	
+	/** Configurable: Cache item maximum age (expiry) **/
+	private long cacheExpiry = 30000;
 	 
-	private boolean statsOn = true;
-	private long hits	= 0;
-	private long misses = 0;
-	private long avgHitTime = 0;
-	private long avgMissTime = 0;
+	/** Configurable: Whether or not statistics gathering is on **/
+	private boolean statisticsIsOn = true;
+	
+	private Object statsSynchObject = new Object();
+	
+	private long hitTotal		= 0;
+	private long hitMinTime		= 0;
+	private long hitMaxTime		= 0;
+	private long hitAvgTime		= 0;	
+	private long missTotal		= 0;
+	private long missMinTime	= 0;
+	private long missMaxTime	= 0;
+	private long missAvgTime	= 0;	
 	
 	///////////////////////////////////////////////////////////////////////////
 	// Constructors
@@ -74,19 +136,24 @@ public class XmlCacheUtility {
 	
 	protected XmlCacheUtility() {
 		configure();
-		loadXmlSources();
-		xmlSources.add(new XmlCacheFileSource());
+		createXmlSources();
 	}
 	
 	protected void configure() {
 		
 		logger.finest("Configuring cache utility");
 		
-		configuration = new Properties();	
+		configuration = new Properties();
+		configuration.setProperty("source.file.class",		"com.oracle.ukps.osbutil.xmlcache.XmlCacheFileSource");
+		configuration.setProperty("source.file.basedir",	"xmlcache");
+		configuration.setProperty(CFGKEY_CACHE_EXPIRY,		"30000");
+		configuration.setProperty(CFGKEY_CACHE_STATS,		"true");
 		
 		String filepath = System.getProperty(CFG_SYSPROP_NAME, "xmlcache.properties");
 		try {
-			configuration.load(new FileInputStream(filepath));
+			Properties userConfiguration = new Properties();
+			userConfiguration.load(new FileInputStream(filepath));
+			configuration = userConfiguration;
 			logger.info("Successfully loaded configuration from: " + filepath);
 		} catch (FileNotFoundException e) {
 			logger.info("No configuration found from: "
@@ -98,10 +165,10 @@ public class XmlCacheUtility {
 		}
 		
 		try {
-			expireAfterMillis = Long.parseLong(configuration.getProperty("expire", "30000"));
-			logger.info("Using cache expiry of " + expireAfterMillis + "ms.");
+			cacheExpiry = Long.parseLong(configuration.getProperty(CFGKEY_CACHE_EXPIRY, "30000"));
+			logger.info("Using cache expiry of " + cacheExpiry + "ms.");
 		} catch (NumberFormatException e) {
-			logger.severe("Configuration property 'expire' is not a valid integer. Using default of " + expireAfterMillis);
+			logger.severe("Configuration property 'expire' is not a valid integer. Using default of " + cacheExpiry);
 		}
 		
 	}
@@ -177,13 +244,10 @@ public class XmlCacheUtility {
 		long s = System.currentTimeMillis();
 		if (xmlCache.containsKey(key)) {
 			XmlCacheEntry entry = xmlCache.get(key);
-			if (entry.timestamp + expireAfterMillis >= System.currentTimeMillis()) {
-				logger.info("HIT: " + key);
-				if (statsOn) {
-					long t = System.currentTimeMillis();
-					avgHitTime = ((avgHitTime * hits) + (t-s)) / (hits + 1);
-					hits++;
-					logger.finer(String.format("Hits=%1s (avg %2s ms), Misses=%3s (avg %4s ms)", hits, avgHitTime, misses, avgMissTime));
+			if (entry.timestamp + cacheExpiry >= System.currentTimeMillis()) {
+				if (statisticsIsOn) {
+					long time = System.currentTimeMillis() - s;
+					updateHitStatistics(time);
 				}
 				return entry.xml;
 			}
@@ -193,10 +257,9 @@ public class XmlCacheUtility {
 		if (xmlObject != null) {
 			XmlCacheEntry cacheEntry = new XmlCacheEntry(xmlObject);
 			xmlCache.put(key, cacheEntry);
-			if (statsOn) {
-				long t = System.currentTimeMillis();
-				avgMissTime = ((avgMissTime * misses) + (t-s)) / (misses + 1);
-				misses++;
+			if (statisticsIsOn) {
+				long time = System.currentTimeMillis() - s;
+				updateMissStatistics(time);
 			}
 			return xmlObject;
 		}
@@ -205,19 +268,111 @@ public class XmlCacheUtility {
 		
 	}
 	
+	public static long getLongProperty(Properties properties, String key, long defaultValue) {
+		String s = properties.getProperty(key);
+		if (s != null) {
+			try {
+				return Long.parseLong(s);
+			} catch (NumberFormatException e) {
+				logger.warning("Property '" + key + "' is not a valid long.");
+			}
+		}
+		return defaultValue;
+	}
+	
+	
 	///////////////////////////////////////////////////////////////////////////
-	// Stats
+	// Statistics Methods
 	///////////////////////////////////////////////////////////////////////////
+	
+	private void updateHitStatistics (long time) {
+		synchronized (statsSynchObject) {
+			hitAvgTime = ((hitAvgTime * hitTotal) + time) / (hitTotal + 1);
+			hitTotal++;
+			if (time < hitMinTime) hitMinTime = time;
+			if (time > hitMaxTime) hitMaxTime = time;
+			statsLogger.info(getStatisticsString());
+		}
+	}
+	
+	private void updateMissStatistics (long time) {
+		synchronized (statsSynchObject) {
+			missAvgTime = ((missAvgTime * missTotal) + time) / (missTotal + 1);
+			missTotal++;
+			if (time < missMinTime) missMinTime = time;
+			if (time > missMaxTime) missMaxTime = time;
+			statsLogger.info(getStatisticsString());
+		}
+	}	
 	
 	public int getCacheSize() {
 		return xmlCache.size();
 	}
 	
+	public long getHitTotal() {
+		return hitTotal;
+	}
+
+	public long getHitMinTime() {
+		return hitMinTime;
+	}
+	
+	public long getHitMaxTime() {
+		return hitMaxTime;
+	}
+	
+	public long getHitAvgTime() {
+		return hitAvgTime;
+	}
+		
+	public long getMissTotal() {
+		return missTotal;
+	}
+	
+	public long getMissMinTime() {
+		return missMinTime;
+	}
+	
+	public long getMissMaxTime() {
+		return missMaxTime;
+	}
+	
+	public long getMissAvgTime() {
+		return missAvgTime;
+	}
+	
+	public void resetStatistics() {
+		hitTotal		= 0;
+		hitMinTime		= 0;
+		hitMaxTime		= 0;
+		hitAvgTime		= 0;
+		missTotal 		= 0;
+		missMinTime		= 0;
+		missMaxTime		= 0;
+		missAvgTime		= 0;
+	}
+	
+	public String getStatisticsString() {
+		return String.format(
+		    "STATS " + 
+		    "HIT-TOTAL=%1s  HIT-MIN=%2s  HIT-AVG=%3s  HIT-MAX=%4s" +
+		    " | " +
+		    "MISS-TOTAL=%5s MISS-MIN=%6s MISS-AVG=%7s MISS-MAX=%8s",
+		    hitTotal,
+		    hitMinTime,
+		    hitAvgTime,
+		    hitMaxTime,
+		    missTotal,
+		    missMinTime,
+		    missAvgTime,
+		    missMaxTime);
+	}
+	
 	///////////////////////////////////////////////////////////////////////////
-	// Factory
+	// Factory: XmlCacheSource
 	///////////////////////////////////////////////////////////////////////////
 	
-	protected void loadXmlSources() {
+	protected void createXmlSources() {
 		ArrayList <String> sourceKeys = new ArrayList <String> ();
 		for (Object o: configuration.keySet()) {
 			String propKey = (String) o;

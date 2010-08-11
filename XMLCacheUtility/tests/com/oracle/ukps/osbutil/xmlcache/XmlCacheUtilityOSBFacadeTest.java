@@ -4,7 +4,7 @@ import junit.framework.TestCase;
 
 import org.apache.xmlbeans.XmlObject;
 
-public class XmlCacheUtilityFacadeTest extends TestCase {
+public class XmlCacheUtilityOSBFacadeTest extends TestCase {
 	
 
 	public void testGetXml() {
