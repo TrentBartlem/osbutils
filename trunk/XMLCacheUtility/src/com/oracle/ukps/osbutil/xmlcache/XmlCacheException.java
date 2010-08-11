@@ -2,8 +2,6 @@ package com.oracle.ukps.osbutil.xmlcache;
 
 /**
  * Represents a cache exception
- * 
- *
  */
 
 public class XmlCacheException extends Exception {
