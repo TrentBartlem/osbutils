@@ -3,6 +3,7 @@ package com.oracle.ukps.osbutil.xmlcache;
 import java.io.File;
 import java.io.IOException;
 import java.util.Properties;
+import java.util.logging.Logger;
 
 import org.apache.xmlbeans.XmlException;
 import org.apache.xmlbeans.XmlObject;
@@ -60,31 +61,42 @@ import org.apache.xmlbeans.XmlObject;
  */
 public class XmlCacheFileSource implements XmlCacheSource {
 	
-	String basedir = "xmlcache";
+	private static Logger logger = Logger.getLogger(XmlCacheFileSource.class.getName());
+	
+	private String basedir = "xmlcache";
 	
 	@Override
 	public XmlObject readSource(String key) {
-		String filepath = basedir + "/" + key + ".xml";
-		File xmlFile = new File(filepath);
 		
+		logger.finer("Asked for XML with key: " + key);
+		
+		String filepath = basedir + "/" + key + ".xml";
+		
+		logger.finer("Filepath for given key is: " + filepath);
+		
+		File xmlFile = new File(filepath);
 		if (xmlFile.exists() && xmlFile.isFile()) {
 			try {
+				logger.finer("Successfully found XML for key: " + key + ": returning XML");
 				return XmlObject.Factory.parse(xmlFile);
 			} catch (XmlException e) {
-				// TODO: Add WebLogic Logging
+				logger.severe(e.getLocalizedMessage());
 				e.printStackTrace();
 			} catch (IOException e) {
-				// TODO: Add Weblogic logging
+				logger.severe(e.getLocalizedMessage());
 				e.printStackTrace();
 			}
 		}
 		
+		logger.finer("Failed to find XML for the key: " + key);
 		return null;
 	}
 
 	@Override
-	public void configure(Properties configuration, String base) {
-		basedir = configuration.getProperty(base + ".basedir", "xmlcache");
+	public void configure(Properties configuration, String propbase) {
+		logger.finer("Configuring file source for property base: " + propbase);
+		basedir = configuration.getProperty(propbase + ".basedir", "xmlcache");
+		logger.fine("Ccnfigured file source against basedir: " + basedir);
 	}
 	
 	@Override
