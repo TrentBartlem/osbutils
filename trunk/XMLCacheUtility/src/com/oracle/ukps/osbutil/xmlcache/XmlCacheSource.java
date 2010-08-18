@@ -1,3 +1,17 @@
+/*
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
 package com.oracle.ukps.osbutil.xmlcache;
 
 import java.util.Properties;
@@ -5,7 +19,18 @@ import java.util.Properties;
 import org.apache.xmlbeans.XmlObject;
 
 /**
- * Interface to a XML source to be used by the cache.
+ * Interface to a XML source to be used by the cache utility.
+ * 
+ * <p>This interface must be implemented by any custom XML source that is
+ * used by the XML cache utility.</p>
+ * 
+ * <p>The cache utility is responsible for creating an instance of the custom
+ * source and does so via reflection to find a no-argument constructor.
+ * Therefore a custom XML source <b>MUST implement a no-argument constructor.
+ * </b></p>
+ * 
+ * 
+ * @see XmlCacheFileSource
  * 
  */
 

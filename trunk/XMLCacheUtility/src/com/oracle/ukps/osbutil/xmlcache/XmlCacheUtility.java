@@ -1,3 +1,17 @@
+/*
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+
 package com.oracle.ukps.osbutil.xmlcache;
 
 import java.io.FileInputStream;
@@ -27,16 +41,39 @@ import org.apache.xmlbeans.XmlObject;
  *
  * <p>Configuration is performed via a properties file.</p>
  * 
- * <table>
+ * <table class="props">
+ *     <tr class="title">
+ *         <td colspan="4">Configuration Properties</td>
+ *     </tr>
+ *     <tr>
+ *         <th>Property</th>
+ *         <th>Description</th>
+ *         <th>Default</th>
+ *         <th>Required</th>
+ *     </tr>
+ *     <tr class="odd">
+ *         <td>cache.expiry</td>
+ *         <td>The number of milliseconds that items should remain in the cache
+ *         before being reloaded.</td>
+ *         <td>30000</td>
+ *         <td>No</td> 
+ *     </tr>
+ *     <tr class="even">
+ *     		<td>cache.statistics</td>
+ *          <td>Flag to control whether or not cache statistics are recorded.
+ *          For performance statistics should be turned off.</td>
+ *          <td>
+ *     </tr>
  * </table>
  *
  * <h2>Logging</h2>
  * 
- * <p>Logging is implemented using the JDK Logging. This removes the
+ * <p>Logging is implemented using the Java (JDK) logging. Using Java logging
+ * rather than other logging frameworks (for example Log4J) removes the
  * dependencies on other JAR files making this utility easier to deploy,
  * especially in OSB.</p>
  * 
- * <p>To use the JDK logging only then the normal JDK configuration holds. It
+ * <p>To use the Java logging only then the normal JDK configuration holds. It
  * is recommended that you copy the file <i>JRE</i>/lib/logging.properties,
  * make changes to the copy and specify the properties via the System property
  * 'java.util.logging.config'. For example: </p>
@@ -65,10 +102,39 @@ import org.apache.xmlbeans.XmlObject;
  * log level. It is recommended that this log is disabled in systems that
  * require maximum throughput.</p>
  * 
- * <h3>Integrating with WebLogic Logging</h3>
+ * <h3>Integrating with WebLogic Server Logging</h3>
  * 
- * <p>In OSB this will require
+ * <p>To integrate with the WebLogic Server Logging the Java logging
+ * configuration must specify a Handler that publishes log records to the
+ * WebLogic Server log.</p>
  * 
+ * <p>In OSB 10.x there is no pre-packaged Java logging handler that publishes
+ * to the WebLogic server logs. In this scenario it is recommended that the
+ * additional UKPS handler that provides this functionality.</p>
+ * 
+ * <p>OSB 10.x and earlier:</p>
+ * <ul>
+ *     <li>Add the <code>java.util.logging.config.file</code> system
+ *     property to point to a custom logging configuration file.</li>
+ *     <li>Add the WebLogicLoggingUtility.jar containing the WebLogic server
+ *     log Handler (com.oracle.ukps.wls.logging.WebLogicServerLogHandler) to
+ *     the server classpath.</li>
+ *     <li>In the custom logging configuration file specify the
+ *     WebLogicServerLogHandler as the handler for this class.</li>
+ * </ul>
+ * 
+ * <p>In OSB 11g there is a pre-packaged Java logging to WebLogic server
+ * logging handler weblogic.logging.ServerLoggingHandler. Refer to <a
+ * href="http://download.oracle.com/docs/cd/E14571_01/web.1111/e13739/logging_services.htm">
+ * WebLogic Logging Bridge</a></p>
+ * 
+ * <p>OSB 11 and later:</p>
+ * <ul>
+ *     <li>Add the <code>java.util.logging.config.file</code> system
+ *     property to point to a custom logging configuration file.</li>
+ *     <li>In the custom logging configuration file specify the
+ *     {@link} WebLogicServerLogHandler as the handler for this class.</li>
+ * </ul>
  */
 
 public class XmlCacheUtility {
@@ -84,13 +150,14 @@ public class XmlCacheUtility {
 	/** The configuration key to set the cache expiry **/
 	public static String CFGKEY_CACHE_EXPIRY = "cache.expiry";
 	
-
+	/** The configuration key to turn statistics gathering on/off **/
 	public static String CFGKEY_CACHE_STATS  = "cache.statistics";
 	
-	/** JDK Logging Logger - Can be configured to use WL Logging Bridge **/
+	/** General logger **/
 	private static Logger logger
 		= Logger.getLogger(XmlCacheUtility.class.getName());
 	
+	/** Statistics logger **/
 	private static Logger statsLogger
 		= Logger.getLogger(XmlCacheUtility.class.getName() + ".STATS");
 	
@@ -112,13 +179,13 @@ public class XmlCacheUtility {
 	/** Configuration properties **/
 	private Properties configuration = new Properties();
 	
-	
 	/** Configurable: Cache item maximum age (expiry) **/
 	private long cacheExpiry = 30000;
 	 
 	/** Configurable: Whether or not statistics gathering is on **/
 	private boolean statisticsIsOn = true;
 	
+	/** Object used for thread locking when updating the statistics **/
 	private Object statsSynchObject = new Object();
 	
 	private long hitTotal		= 0;
@@ -167,6 +234,8 @@ public class XmlCacheUtility {
 		try {
 			cacheExpiry = Long.parseLong(configuration.getProperty(CFGKEY_CACHE_EXPIRY, "30000"));
 			logger.info("Using cache expiry of " + cacheExpiry + "ms.");
+			statisticsIsOn = Boolean.parseBoolean(configuration.getProperty(CFGKEY_CACHE_STATS, "true"));
+			logger.info("Cache statistics are on? "  + statisticsIsOn);
 		} catch (NumberFormatException e) {
 			logger.severe("Configuration property 'expire' is not a valid integer. Using default of " + cacheExpiry);
 		}
