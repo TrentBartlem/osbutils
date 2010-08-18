@@ -24,5 +24,14 @@ public class XmlCacheUtilityOSBFacade {
 	public static XmlObject getXml(String key) throws XmlCacheException {
 		return XmlCacheUtility.getXmlCacheUtility().getXml(key);
 	}
+	
+	/**
+	 * Reset the cache statistics
+	 */
+	
+	public static void resetStatistics() {
+		XmlCacheUtility.getXmlCacheUtility().resetStatistics();
+	}
+	
 
 }
