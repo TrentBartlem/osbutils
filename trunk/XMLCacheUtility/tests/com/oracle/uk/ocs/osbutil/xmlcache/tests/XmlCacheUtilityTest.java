@@ -1,6 +1,8 @@
-package com.oracle.ukps.osbutil.xmlcache;
+package com.oracle.uk.ocs.osbutil.xmlcache.tests;
 
 import org.apache.xmlbeans.XmlObject;
+
+import com.oracle.uk.ocs.osbutil.xmlcache.XmlCacheUtility;
 
 import junit.framework.TestCase;
 

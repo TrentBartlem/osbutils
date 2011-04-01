@@ -1,8 +1,11 @@
-package com.oracle.ukps.osbutil.xmlcache;
+package com.oracle.uk.ocs.osbutil.xmlcache.tests;
 
 import junit.framework.TestCase;
 
 import org.apache.xmlbeans.XmlObject;
+
+import com.oracle.uk.ocs.osbutil.xmlcache.XmlCacheException;
+import com.oracle.uk.ocs.osbutil.xmlcache.XmlCacheUtilityOSBFacade;
 
 public class XmlCacheUtilityOSBFacadeTest extends TestCase {
 	

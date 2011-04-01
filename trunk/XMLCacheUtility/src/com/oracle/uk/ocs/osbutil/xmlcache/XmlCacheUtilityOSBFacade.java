@@ -1,4 +1,4 @@
-package com.oracle.ukps.osbutil.xmlcache;
+package com.oracle.uk.ocs.osbutil.xmlcache;
 
 import org.apache.xmlbeans.XmlObject;
 
