@@ -12,7 +12,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.oracle.ukps.osbutil.xmlcache;
+package com.oracle.uk.ocs.osbutil.xmlcache;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
