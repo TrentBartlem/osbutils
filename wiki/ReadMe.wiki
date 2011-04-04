@@ -7,7 +7,7 @@ This project should contains the source code for any Oracle Service Bus utilitie
 At present this project contains the following sub-projects:
 
 || XmlCacheUtility || Provides a XML caching mechanism. A disk-based implementation is provided ||
-|| XQTestFramework || Provides a framework to ease the production of automated JUnit tests for XQuery transformations
+|| XQTestFramework || Provides a framework to ease the production of automated JUnit tests for XQuery transformations ||
 
 = Details =
 
