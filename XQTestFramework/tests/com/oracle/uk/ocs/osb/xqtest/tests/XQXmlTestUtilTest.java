@@ -22,7 +22,7 @@ import org.apache.xmlbeans.XmlObject;
 import org.apache.xmlbeans.XmlOptions;
 import org.junit.Test;
 
-import com.oracle.uk.ocs.osb.xqtest.XQXmlTestUtil;
+import com.oracle.uk.ocs.osb.xqtest.util.XQXmlTestUtil;
 
 import static org.junit.Assert.*;
 

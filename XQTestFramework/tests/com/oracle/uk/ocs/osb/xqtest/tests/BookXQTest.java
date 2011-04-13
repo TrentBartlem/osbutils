@@ -43,12 +43,56 @@ public class BookXQTest extends XQAbstractTest {
 	}
 	
 	@Test
-	public void test_assertEquals_complexTypeResult() throws Exception {
+	public void test_assertEquals_complexTypeResult_fileAndXPaths() throws Exception {
 		setParameter("booklist1", new File("testdata/BookList1.xml"));
 		setParameter("booklist2", new File("testdata/BookList2.xml"));
 		executeQuery(new File("testdata/Merge.xq"));
 		assertEquals(0, ".", new File("testdata/BookListMergeResult.xml"), ".");
 	}
 	
+
+	@Test
+	public void test_assertEquals_complexTypeResult_fileOnly() throws Exception {
+		setParameter("booklist1", new File("testdata/BookList1.xml"));
+		setParameter("booklist2", new File("testdata/BookList2.xml"));
+		executeQuery(new File("testdata/Merge.xq"));
+		assertEquals(new File("testdata/BookListMergeResult.xml"));
+	}
+	
+//	@Test
+//	public void test_assertEquals_complexTypeResult_fileOnly_negative() throws Exception {
+//		setParameter("booklist1", new File("testdata/BookList1.xml"));
+//		setParameter("booklist2", new File("testdata/BookList2.xml"));
+//		executeQuery(new File("testdata/Merge.xq"));
+//		assertEquals(new File("testdata/BookListMergeResultBad.xml"));
+//	}	
+
+	@Test
+	public void test_assertEquals_complexTypeResult_withPaths() throws Exception {
+		setBaseDir(new File("testdata2"));
+		setParameter("booklist", new File("testdata/BookList1.xml"));
+		executeQuery(new File("Total2.xq"));
+		assertEquals(0, "123.97");
+	}
+	
+	@Test
+	public void test_assertEquals_complexTypeResult_withOverridePaths() throws Exception {
+		System.setProperty(XQAbstractTest.XQ_BASEDIR_PROPKEY, "testdata2");
+		setBaseDir(new File("testdata"));
+		setParameter("booklist", new File("testdata/BookList1.xml"));
+		executeQuery(new File("Total2.xq"));
+		assertEquals(0, "123.97");
+		System.getProperties().remove(XQAbstractTest.XQ_BASEDIR_PROPKEY);
+	}
+	
+	@Test
+	public void test_assertEquals_complexTypeResult_withOverridePaths2() throws Exception {
+		System.setProperty(XQAbstractTest.XQ_BASEDIR_PROPKEY, "testdata2");
+		setBaseDir(new File("testdata"));
+		setParameter("booklist", new File("testdata/BookList1.xml"));
+		executeQuery(new File("books/Total3.xq"));
+		assertEquals(0, "123.97");
+		System.getProperties().remove(XQAbstractTest.XQ_BASEDIR_PROPKEY);
+	}		
 	
 }

@@ -31,9 +31,25 @@ method that is defined. This is why the common namespaces and parameters
 should be set in the setup method. This will be called each time and provides
 a test "constructor".</p>
 
-<h2>Example Test</h2>
+<h2>Example File-Based Test</h2>
 
-<pre>
+<p>Generally speaking the simplest way to compose a test is to use fixed input
+XML read from a file for each parameter and to compare the result of the
+transformation against some expected value, also stored in an XML file. The
+XML files may have either been copied/exported from the XQuery editor within
+OEPE or simply existing XML files.</p>
+
+<p>The parameters to an XQuery can easily be read from an XML file as the
+{@link XQAbstractTest#setParameter(File) setParameter} method takes a
+<code>File</code> as a argument and reads the XML from that. In addition to
+this the {@link XQAbstractTest#assertEquals(File) assertEquals} method also
+takes a <code>File</code> as an argument. The XML will be read from the file
+and compared to the result.</p>
+
+<p>The following example shows how to write such a test:</p>
+
+<pre class="code">
+{@code
 ...
 import java.io.File;
 import org.junit.Before;
@@ -41,17 +57,45 @@ import org.junit.Test;
 ...
 public class XQExampleTest extends XQAbstractTest {
 	...
-	\@Before
+	&#064;Before
+	public void setup() {
+		declareNamespace("test", "http://www.example.org/test");
+	}
+	...
+	&#064;Test
+	public void test1 {
+		executeQuery(new File("MyTest.xq"));
+		setParameter("param1", new File("testdata/MyTest/test1/param1.xml"));
+		setParameter("param2", new File("testdata/MyTest/test1/param2.xml"));
+		assertEquals(new File("testdata/MyTest/test1/expected-result.xml"));
+	}	
+}
+}
+</pre>
+
+<h2>Example Test</h2>
+
+<pre>
+{@code
+...
+import java.io.File;
+import org.junit.Before;
+import org.junit.Test;
+...
+public class XQExampleTest extends XQAbstractTest {
+	...
+	&#064;Before
 	public void setup() {
 		declareNamespace("test", "http://www.example.org/test");
 		setParameter("test", new File("test.xml");
 	}
 	...
-	\@Test
+	&#064;Test
 	public void test1 {
 		executeQuery(new File("test.xq"));
 		assertEquals(0, "./test:Test/@testattr", "attrval");
 	}	
+}
 }
 </pre>
 
