@@ -1,4 +1,4 @@
-#XQuery transformation testing framework
+# XQuery transformation testing framework
 
 = Introduction =
 
