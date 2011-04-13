@@ -12,7 +12,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-package com.oracle.uk.ocs.osb.xqtest;
+package com.oracle.uk.ocs.osb.xqtest.util;
 
 import java.io.File;
 import java.io.FileReader;

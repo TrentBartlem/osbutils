@@ -14,7 +14,10 @@
 
 package com.oracle.uk.ocs.osb.xqtest.tests;
 
+import java.io.File;
+
 import org.apache.xmlbeans.XmlObject;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -58,7 +61,7 @@ public class XQAbstractTestTest extends XQAbstractTest {
 		"test:Total($booklist)";
 	
 	@Test
-	public static void testXQueryFull_change() throws Exception {
+	public void testXQueryFull_change() throws Exception {
 		
 	}
 	
@@ -66,6 +69,23 @@ public class XQAbstractTestTest extends XQAbstractTest {
 	public void test_AssertValid_Simple() throws Exception {
 		XmlObject a = XmlObject.Factory.parse(testXmlSimpleA);
 
+	}
+	
+	@Test
+	public void test_getXQueryFile() throws Exception {
+		File f = new File("testdata/Total.xq");
+		Assert.assertTrue(f.exists());
+		File x;
+		x = findXQueryFile(new File("Total.xq"));
+		Assert.assertFalse(x.exists());
+		setBaseDir(new File("testdata"));
+		x = findXQueryFile(new File("Total.xq"));
+		System.out.println("XQuery file: " + x.getPath());
+		Assert.assertTrue(x.exists());
+		
+		Assert.assertEquals(f, x);
+		
+		
 	}
 	
 }

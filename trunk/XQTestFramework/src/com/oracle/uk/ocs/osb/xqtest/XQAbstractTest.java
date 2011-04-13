@@ -28,7 +28,8 @@ import org.apache.xmlbeans.XmlException;
 import org.apache.xmlbeans.XmlObject;
 import org.apache.xmlbeans.XmlOptions;
 import org.junit.Assert;
-import org.junit.Before;
+
+import com.oracle.uk.ocs.osb.xqtest.util.XQXmlTestUtil;
 
 
 /**
@@ -46,6 +47,13 @@ import org.junit.Before;
  * <p><b>Reminder: A new instance of the class will be created by JUnit for
  * each test method!</b></p>
  * 
+ * <p><b>Reminder:</b> You should use the {@link #setBaseDir(File) setBaseDir}
+ * method to identify the base directory for your tests. This can then be
+ * overriden with a system property in automated environments.</p>
+ * 
+ * <p>A full description of how to use this test can be found in the
+ * description for the <a href="package-summary.html">Package Summary</a>.</p>
+ * 
  * @author		James Nash (james.nash@oracle.com)
  * @version		0.1
  *
@@ -53,27 +61,37 @@ import org.junit.Before;
 
 public abstract class XQAbstractTest {
 	
-	public Logger logger;
+	/** The system property to set to override the XQuery basedir **/
+	public static String XQ_BASEDIR_PROPKEY = "xqtests.basedir";
+	
+	private static Logger logger = Logger.getLogger(XQAbstractTest.class.getName());
 
 	///////////////////////////////////////////////////////////////////////////
-	// Constructor
+	// Properties
 	///////////////////////////////////////////////////////////////////////////	
 		
 	private Map <String, String> namespaceMap;
 	private Map <String, Object> parameterMap;
 	private XmlObject[] result;
 	
+	private File basedir;
+		
 	///////////////////////////////////////////////////////////////////////////
 	// Constructor
 	///////////////////////////////////////////////////////////////////////////	
 	
 	/**
-	 * Initiates the namespace and parameter maps
+	 * Initiates the namespace map, parameter map and base directory
 	 */
 	public XQAbstractTest() {
+		
 		namespaceMap = createNamespaceMapInstance();
 		parameterMap = createParameterMapInstance();
+		basedir = new File(System.getProperty("user.dir"));
+		
 	}
+	
+
 	
 	///////////////////////////////////////////////////////////////////////////
 	// Namespaces
@@ -153,6 +171,14 @@ public abstract class XQAbstractTest {
 			setParameter(name, r[0]);
 	}
 	
+	/**
+	 * Set a parameter as a <code>Node</code> 
+	 * @param name
+	 * @param file
+	 * @param xpath
+	 * @throws IOException
+	 * @throws XmlException
+	 */
 	public void setParameter(String name, File file, String xpath) throws IOException, XmlException  {
 		XmlObject xmlObject = XmlObject.Factory.parse(file);
 		setParameter(name, xmlObject, xpath);
@@ -170,7 +196,7 @@ public abstract class XQAbstractTest {
 	///////////////////////////////////////////////////////////////////////////
 	
 	/**
-	 * 
+	 * Execute an XQuery defined in a string
 	 */
 	public void executeQuery(String xq) {
 		XmlObject tempXml = XmlObject.Factory.newInstance();
@@ -179,8 +205,14 @@ public abstract class XQAbstractTest {
 		result = tempXml.execQuery(xq, opts);
 	}
 	
+	/**
+	 * Execute and XQuery defined in a file
+	 * @param file			The file containing the XQuery expression
+	 * @throws IOException	If the file cannot be read
+	 */
 	public void executeQuery(File file) throws IOException {
-		executeQuery(readFileAsString(file));
+		File xqfile = findXQueryFile(file);
+		executeQuery(readFileAsString(xqfile));
 	}
 	
 	///////////////////////////////////////////////////////////////////////////
@@ -214,7 +246,9 @@ public abstract class XQAbstractTest {
 	 * @param value			The value to assert as equal
 	 */
 	public void assertEquals(int index, String value) {
-		Assert.assertEquals (value, result[index].getDomNode().getFirstChild().getNodeValue());
+		logger.fine("index: " + index);
+		logger.fine("value: " + value);
+		Assert.assertEquals ("Expected string value for result index " + index, value, result[index].getDomNode().getFirstChild().getNodeValue());
 	}
 	
 	
@@ -227,9 +261,12 @@ public abstract class XQAbstractTest {
 	 * @param value
 	 */
 	public void assertEquals(int index, String xpath, String value) {
+		logger.fine("index: " + index);
+		logger.fine("xpath: " + xpath);
+		logger.fine("value: " + value);
 		XmlObject xmlObject = result[index];
 		XmlObject pathValue = xmlObject.selectPath(getNamespaceDeclarations() + xpath)[0];
-		Assert.assertEquals(value, pathValue.getDomNode().getFirstChild().getNodeValue());
+		Assert.assertEquals("Expected string value for index " + index + " at path " + xpath, value, pathValue.getDomNode().getFirstChild().getNodeValue());
 	}
 	
 	/**
@@ -238,32 +275,63 @@ public abstract class XQAbstractTest {
 	 * @param value
 	 */
 	public void assertDeepEquals(int index, XmlObject value) throws XmlException, IOException {
-		XmlObject xmlObject = result[index];		
+		XmlObject xmlObject = result[index];
 		Assert.assertTrue("XML objects not equal: ", XQXmlTestUtil.equals(xmlObject, value));
 	}
 	
 	/**
-	 * Assert
-	 * @param index
-	 * @param xpath1
-	 * @param value
-	 * @param xpath2
+	 * Asserts that a node returned by an XQuery expression is equal to a node
+	 * within some XML.
+	 * 
+	 * The XPath expressions are prepended with any namespace declarations
+	 * that have been declared for the test case.
+	 * 
+	 * @param index		An index into the result from the XQuery expression 
+	 * @param xpath1	A XPath within the indexed result to evaluate as equal
+	 * @param value		Some XML to evaluate against
+	 * @param xpath2	A XPath within the provided XML to evaluate as equal
 	 * @throws XmlException
 	 */
-	public void assertEquals(int index, String xpath1, XmlObject value, String xpath2) throws XmlException {
+	public void assertEquals(int index, String xpath1, XmlObject value, String xpath2) throws XmlException, IOException  {
 		String fullXPath1 = getNamespaceDeclarations() + xpath1;
 		String fullXPath2 = getNamespaceDeclarations() + xpath2;
-		Assert.assertTrue(XQXmlTestUtil.equals(getResult()[index], fullXPath1, value, fullXPath2));
+		XmlObject a = getResult()[index].selectPath(fullXPath1)[0];
+		XmlObject b = value.selectPath(fullXPath1)[0];
+		boolean equal = XQXmlTestUtil.equals(a, b);
+		if (!equal) {
+			
+			XmlOptions xmlOpts = new XmlOptions();
+			xmlOpts.setSavePrettyPrint();
+			xmlOpts.setSavePrettyPrintIndent(4);
+
+			System.out.println();
+			System.out.println();
+			System.out.println("---- A -----------------------------------------------------");
+			a.save(System.out, xmlOpts);
+			System.out.println();
+			System.out.println();
+			System.out.println("---- B -----------------------------------------------------");
+			b.save(System.out, xmlOpts);
+			System.out.println();
+			System.out.println();
+			
+			Assert.fail("XML not equal. Please see STDOUT for the XML values to compare.");
+		}
 	}
 	
 	/**
-	 * Assert that an XPath expression evaluated against a specific index fromresult from an XQuery expression is equal to
-	 * an XPath 
+	 * Asserts that a node returned by an XQuery expression is equal to a node
+	 * within some XML within a file.
 	 * 
-	 * @param index			The index of the XQ expression result
-	 * @param xpath1		The XPath within the selected result index
-	 * @param xmlFile		The XML file that contains the value to assert 
-	 * @param xpath2		The XPath to assert within the XML file
+	 * <p>This is a convenience method that reads some XML from the specified
+	 * file and then invokes
+	 * @{link {@link #assertEquals(int, String, XmlObject, String)}</p>
+	 * 
+	 * @param index			An index into the result from the XQuery expression
+	 * @param xpath1		A XPath within the indexed result to evaluate as equal
+	 * @param xmlFile		The file that contains the XML to evaluate against 
+	 * @param xpath2		A XPath within the provided XML to evaluate as equal
+	 * @see assertEquals(int, String, XmlObject, String)
 	 * 
 	 * @throws XmlException		If bad XML argument
 	 * @throws IOException		reading the XML file
@@ -276,7 +344,7 @@ public abstract class XQAbstractTest {
 	/**
 	 * Assert that the result of an XQuery is equal to XML from a file
 	 * @param xmlFile		The XML file containing the value to assert
-	 * 
+	 * @see assertEquals(int, String, XmlObject, String
 	 * @throws XmlException
 	 * @throws IOException
 	 */
@@ -284,6 +352,10 @@ public abstract class XQAbstractTest {
 		assertEquals(0, ".", xmlFile, ".");
 	}
 	
+	/**
+	 * Asserts that a result is valid XML
+	 * @param index		The index of the result to validate
+	 */
 	public void assertValid(int index) {
 		ArrayList validationErrors = new ArrayList();
 		XmlOptions xmlOpts = new XmlOptions();
@@ -296,6 +368,47 @@ public abstract class XQAbstractTest {
 			}
 		}
 	}
+	
+	/**
+	 * Asserts the result is valid XML
+	 */
+	public void assertValid() {
+		assertValid(0);
+	}
+	
+	///////////////////////////////////////////////////////////////////////////
+	// XQuery file basedir
+	///////////////////////////////////////////////////////////////////////////	
+
+	/**
+	 * Sets the base directory which is used for locating the XQuery to be
+	 * tested.
+	 * 
+	 * @param basedir	The directory
+	 */
+	public void setBaseDir(File basedir) {
+		if (basedir.exists() && basedir.isDirectory())
+			this.basedir = basedir;
+		else
+			throw new IllegalArgumentException("The specified base is not a directory");
+	}	
+	
+	public File findXQueryFile(File file) {
+		
+		// If the file that has been specified is an absolute path then we
+		// should trust that the path is correct.
+		if (file.isAbsolute())
+			return file;
+		
+		// If the system property has been set then we should use that to
+		// find the file in preference to that set within the test.
+		String sysbasedir = System.getProperty(XQAbstractTest.XQ_BASEDIR_PROPKEY);
+		if (sysbasedir != null) {
+			return new File(sysbasedir + File.separator + file.getPath());
+		}
+		
+		return new File(basedir.getPath() + File.separator + file.getPath());
+	}	
 
 	///////////////////////////////////////////////////////////////////////////
 	// Template Pattern for Maps
@@ -337,5 +450,7 @@ public abstract class XQAbstractTest {
 			sw.write(cbuf, 0, len);
 		}
 		return sw.toString();
-	}	
+	}
+	
+
 }
