@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+
+<project basedir="." default="build" name="XQTestFramework">
+ 
+	<fail unless="fmw.home" />
+	<fail unless="oepe.home" />
+   
+    <property environment="env"/>
+ 
+    <property name="junit.output.dir" value="test-reports"/>
+    <property name="debuglevel" value="source,lines,vars"/>
+    <property name="target" value="1.5"/>
+    <property name="source" value="1.5"/>
+    
+    <path id="JUnit 4.libraryclasspath">
+        <pathelement location="${oepe.home}/plugins/org.junit4_4.5.0.v20090824/junit.jar"/>
+        <pathelement location="${oepe.home}/plugins/org.hamcrest.core_1.1.0.v20090501071000.jar"/>
+    </path>
+    
+    <path id="XQTestFramework.classpath">
+        <pathelement location="bin"/>
+        <pathelement location="${fmw.home}/modules/com.bea.core.antlr.runtime_2.7.7.jar"/>
+        <pathelement location="${fmw.home}/modules/com.bea.core.xml.xmlbeans_2.2.0.0.jar"/>
+        <pathelement location="${fmw.home}/modules/com.bea.core.xquery.xmlbeans-interop_1.3.0.0.jar"/>
+        <pathelement location="${fmw.home}/modules/com.bea.core.xquery_1.3.0.0.jar"/>
+        <path refid="JUnit 4.libraryclasspath"/>
+    </path>
+    
+    <target name="init">
+        <mkdir dir="bin"/>
+        <copy includeemptydirs="false" todir="bin">
+            <fileset dir="src">
+                <exclude name="**/*.launch"/>
+                <exclude name="**/*.java"/>
+            </fileset>
+        </copy>
+        <copy includeemptydirs="false" todir="bin">
+            <fileset dir="tests">
+                <exclude name="**/*.launch"/>
+                <exclude name="**/*.java"/>
+            </fileset>
+        </copy>
+    </target>
+    
+    <target name="clean">
+        <delete dir="bin"/>
+    </target>
+    
+    <target name="cleanall" depends="clean" />
+    
+    <target name="build" depends="" />
+    
+    <target name="build-tests" depends="init">
+        <javac debug="true" debuglevel="${debuglevel}" destdir="bin" source="${source}" target="${target}">
+            <src path="tests"/>
+            <classpath refid="XQTestFramework.classpath"/>
+        </javac>
+    </target>    
+    
+    <target name="build-src" depends="init">
+        <javac debug="true" debuglevel="${debuglevel}" destdir="bin" source="${source}" target="${target}">
+            <src path="src"/>
+            <classpath refid="XQTestFramework.classpath"/>
+        </javac>
+    </target>
+        
+    <target name="run-tests" depends="build-tests">
+        <mkdir dir="${junit.output.dir}"/>
+        <junit fork="yes" printsummary="withOutAndErr">
+            <formatter type="xml"/>
+            <test name="com.oracle.uk.ocs.osb.xqtest.tests.BookXQTest" todir="${junit.output.dir}"/>
+            <classpath refid="XQTestFramework.classpath"/>
+		  <batchtest todir="${junit.output.dir}">
+		    <fileset dir="tests">
+		      <include name="**/*Test*.java"/>
+		      <exclude name="**/AllTests.java"/>
+		    </fileset>
+		  </batchtest>            
+        </junit>
+    </target>
+    
+    <target name="junitreport">
+        <junitreport todir="${junit.output.dir}">
+            <fileset dir="${junit.output.dir}">
+                <include name="TEST-*.xml"/>
+            </fileset>
+            <report format="frames" todir="${junit.output.dir}"/>
+        </junitreport>
+    </target>
+    
+    <target name="init-build-numbers">
+    	<propertyfile file="build-ref.properties">
+    		<entry
+    			key			= "build.number"
+    			type		= "int"
+    			default		= "0"
+    			value		= "1"
+    			operation	= "+"
+    		/>
+    		<entry
+    			key			= "build.date"
+    			type		= "date"
+    			value		= "now"
+    			pattern		= "yyyy-MM-dd"
+    			operation	= "="
+    		/>
+    	</propertyfile>
+    	<property file="build-ref.properties" />
+    	<echo message="build.number: ${build.number}" />
+    	<echo message="build.date:   ${build.date}" />
+    </target>
+    
+    <target name="create-bin-jar" depends="init-build-numbers">
+    	<mkdir dir="dist" />
+    	<jar
+    		destfile="dist/xqtestfmk-0.1-${build.date}-bin.jar"
+    		basedir="bin"
+    		excludes="com/oracle/uk/ocs/osb/xqtests/tests/**"
+    	/>
+    </target>
+    
+    <target name="docs">
+    	<mkdir dir="docs" />
+        <javadoc
+        	access="public"
+    		author="true"
+        	classpath="${toString:XQTestFramework.classpath}"
+        	destdir="docs"
+    		doctitle="XQTestFramework"
+    		nodeprecated="false"
+        	nodeprecatedlist="false"
+        	noindex="false"
+        	nonavbar="false"
+        	notree="false"
+        	source="1.5"
+        	sourcepath="src"
+        	splitindex="true"
+        	stylesheetfile="src/docs.css"
+        	use="true"
+        	version="true">
+        	
+        	<bottom><![CDATA[<p id="footer">This project is OpenSource! Please contribute - the source is available from <a href="http://osbutils.googlecode.com" target="_top">obutils</a> Google Code project.</p>]]></bottom>
+        </javadoc>
+    </target>
+    
+    <target name="create-doc-jar" depends="docs">
+    	<mkdir dir="dist" />
+    	<jar
+    		destfile="dist/xqtestfmk-0.1-${build.date}-docs.jar"
+    		basedir="docs"
+    	/>
+    </target>
+</project>
