@@ -4,6 +4,14 @@
 
 The XQTest Framework provides a framework for creating JUnit tests for XQuery transformations.
 
+= Downloads =
+
+* [http://code.google.com/p/osbutils/downloads/detail?name=xqtestfmk-0.1-2011-04-13-bin.jar&can=2&q= Latest binary JAR]
+
+= Source Code =
+
+The source code is available from Google code. The code can either be
+[http://code.google.com/p/osbutils/source/browse/#svn%2Ftrunk%2FXQTestFramework browsed online] or, if you would like to contribute, can be accessed with a Subversion client.
 
 = Details =
 
@@ -12,8 +20,4 @@ Add your content here.  Format your content with:
   * Headings, paragraphs, and lists
   * Automatic links to other wiki pages
 
-= Source Code =
 
-[http://code.google.com/p/osbutils/source/browse/#svn%2Ftrunk%2FXQTestFramework browse]
-
-= Download =
