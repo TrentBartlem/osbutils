@@ -20,6 +20,17 @@ The source code is available from Google code. The code can either be
   * Headings, paragraphs, and lists
   * Automatic links to other wiki pages
 
+= Writing Tests =
+
+The framework extends JUnit by providing a base class that can be readily extended in order to write tests. The base class provides:
+
+ * A Context in which namespaces can be declared and re-used.
+ * Convenience methods for dealing with XML and XQuery from files.
+ * Assertion methods for validating and checking XML
+
+Therefore writing a test is as easy as writing a JUnit test case class that extends the base class. The examples provide some sample code for how to achieve this.
+
+It is worth remembering that JUnit will create a new instance of the test case class for each test method that is defined. Therefore common setup should be performed in a method that is marked with the @Before annotation.
 
 = Examples =
 
