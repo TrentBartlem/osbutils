@@ -14,11 +14,10 @@ The source code is available from Google code. The code can either be
 [http://code.google.com/p/osbutils/source/browse/#svn%2Ftrunk%2FXQTestFramework browsed online] or, if you would like to contribute, can be accessed with a Subversion client.
 
 = Contents =
+ * [XQTestFramework#Writing_Tests Writing Tests]
  * [XQTestFramework#Examples Examples]
  * [XQTestFramework#Classpath ClassPath]
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other wiki pages
+ * [XQTestFramework#Releases Releases]
 
 = Writing Tests =
 
@@ -106,3 +105,8 @@ Based on an OSB 11g installation this resulted in the following classpath:
  * _${wl.home}_/modules/com.bea.core.xquery.xmlbeans-interop_1.3.0.0.jar
  * _${wl.home}_/modules/com.bea.core.xquery_1.3.0.0.jar
  * _${wl.home}_/modules/com.bea.core.antlr.runtime_2.7.7.jar
+
+= Releases =
+
+|| *Version* || *Changes* ||
+|| xqtestfmk-0.1-2011-04-13-bin.jar || assertEquals now writes out the XML if it does not match to STDOUT so that the difference can be observed ||
