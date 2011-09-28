@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="windows-1252" ?>
+
+<project name="OSBBuildKit" default="build">
+
+	<description>
+		This is an Ant build script that will allow
+	</description>
+	
+	<echo message="basedir: ${basedir}" />
+	
+	<!-- Environment variables will be available with the prefix "env" -->
+	<property environment="env" />
+	
+	<!--
+		The build properties can be overloaded with system properties. This
+		allows this build kit to build different versions of OSB if
+		required.
+	-->
+	<property name="build.properties"	value="build.properties" />
+	<echo message="build.properties: ${build.properties}" />
+	<property file="./build.properties"/>
+
+	<!-- We need to be told where the Middleware Home is -->
+	<fail unless="fmw.home"			message="" />
+	
+	<property name="eclipse.home"	value="${fmw.home}/oepe_11gR1PS2"/>
+	<property name="weblogic.home"	value="${fmw.home}/wlserver_10.3"/>
+	<property name="metadata.dir"	value="${workspace.dir}/.metadata"/>
+	<property name="osb.home"		value="${fmw.home}/Oracle_OSB1"/>
+
+	<path id="osb.class.path">
+		<pathelement path="${weblogic.home}/server/lib/weblogic.jar" />
+		<pathelement path="${osb.home}/lib/alsb.jar" />
+		<pathelement path="${osb.home}/modules/${configfwk}" />
+	</path>
+	
+	<target name="exportFromOSB">
+		<wlst fileName="${domain.export.script}" debug="true" failOnError="false"  
+              arguments="${wls.username} ${wls.password} ${wls.server} ${export.project} ${export.jar} ${export.customFile}">  
+
+		</wlst>
+	</target>
+
+	<target name="deploy">
+	
+		<description>
+			Deploys an OSB configuration JAR to a server
+			
+			This target deploys an
+		</description>
+		
+		<!-- This should have been set if a build has been performed -->
+		<property name="import.jar"	value="${config.jar}" />
+		
+		<echo message="deploy::"/>
+		<echo message="    admin.username=${admin.username}" />
+		<echo message="    admin.password=${admin.password}" />
+		<echo message="    admin.url=${admin.url}" />
+		<echo message="    import.project=${import.project}" />
+		<echo message="    import.jar=${import.jar}" />
+		<echo message="    import.custfile=${import.custfile}" />
+		
+		<!--
+		<wlst fileName="import.py" debug="true" failOnError="false"  
+              arguments="${admin.username} ${admin.password} ${admin.url} ${import.project} ${import.jar} ${import.custfile}">
+		</wlst>
+		-->
+		
+		<java
+			classname="weblogic.WLST"
+			classpathref="osb.class.path"
+			fork="true" >
+				<arg line="import.py ${admin.username} ${admin.password} ${admin.url} ${import.jar} ${import.project} ${import.custfile}" />
+		</java>
+		
+	</target>
+
+	
+	<target name="build">
+		
+		<description>
+			Builds an OSB Configuration JAR.
+			
+			This target builds an OSB Configuration JAR from specified
+			directories.
+		</description>
+		
+		<!--
+			Allow the environment variable workspace to be used to specify the
+			workspace if the property has not been explicitly set. This allows
+			integration with Hudson/Jenkins which does this.
+		-->
+		<property name="workspace.dir" value="${env.WORKSPACE}" />
+		<property name="buildnumber"	value="${env.BUILD_NUMBER}" />
+		
+		<property name="output.dir"			value="${workspace.dir}/output" />
+		<property name="output.name"		value="${config.project}" />
+		<property name="config.jar"			value="${output.dir}/${output.name}_${buildnumber}_sbconfig.jar" />
+		<property name="config.includedeps"	value="true" />
+
+		<fail unless="workspace.dir" message="You must set the system property workspace.dir or the environment variable WORKSPACE" />
+		<fail unless="config.project"	message="The 'config.project' property must be set" />
+		
+		<echo message="build::" />
+		<echo message="  workspace.dir:	${workspace.dir}" />
+		
+		<!--
+			Delete the metadata directory. Provides a cleaner build
+		-->
+		<delete
+			failonerror="false"
+			includeemptydirs="true"
+            dir="${workspace.dir}/.metadata" />
+		
+		<mkdir dir="${output.dir}" />
+		
+		<!-- Clean the output directory. It will only ever contain the latest build -->
+		<delete includeemptydirs="true">
+			<fileset dir="${output.dir}" includes="**/*"/>
+		</delete>
+		
+		<java
+			dir="${eclipse.home}"
+            jar="${eclipse.builder.jar}"
+            fork="true" failonerror="true" maxmemory="768m" resultproperty="rc">
+				<jvmarg line="-XX:MaxPermSize=256m"/>   
+				<arg line="-data ${workspace.dir}"/>
+				<arg line="-application com.bea.alsb.core.ConfigExport"/>
+				<arg line="-configProject ${config.project}"/>
+				<arg line="-configJar ${config.jar}"/>
+				<!--
+				<arg line="-configSubProjects ${config.subprojects}"/>
+				-->
+				<arg line="-includeDependencies ${config.includedeps}"/>
+				<sysproperty key="weblogic.home" value="${weblogic.home}"/>
+				<sysproperty key="osb.home" value="${osb.home}"/>
+				<sysproperty key="osgi.bundlefile.limit" value="500"/>
+				<sysproperty key="harvester.home" value="${osb.home}/harvester"/>
+				<sysproperty key="osgi.nl" value="en_US"/>
+				<sysproperty key="sun.lang.ClassLoader.allowArraySyntax" value="true"/>
+		</java>
+	</target>
+
+
+</project>
