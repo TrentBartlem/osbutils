@@ -1,0 +1,26 @@
+#summary Ant Build and Deploy
+
+= Introduction =
+
+The BuildKit provides an easy way to build, test and deploy your OSB projects.
+
+= Downloads =
+
+ * [http://code.google.com/p/osbutils/downloads/detail?name=buildkit.zip Latest packaged ZIP]
+
+= Source Code =
+
+The source code is available from Google code. The code can either be
+[http://code.google.com/p/osbutils/source/browse/#svn%2Ftrunk%2FBuildKit browsed online] or, if you would like to contribute, can be accessed with a Subversion client.
+
+= Details =
+
+Add your content here.  Format your content with:
+  * Text in *bold* or _italic_
+  * Headings, paragraphs, and lists
+  * Automatic links to other wiki pages
+
+= Releases =
+
+|| *Version* || *Changes* ||
+|| BuildKit.jar || Initial Release. ||
