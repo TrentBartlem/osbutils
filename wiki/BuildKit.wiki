@@ -6,7 +6,7 @@ The BuildKit provides an easy way to build, test and deploy your OSB projects.
 
 = Downloads =
 
- * [http://code.google.com/p/osbutils/downloads/detail?name=buildkit.zip Latest packaged ZIP]
+ * [http://code.google.com/p/osbutils/downloads/detail?name=buildkit-0.1.zip&can=2&q= Latest packaged ZIP]
 
 = Source Code =
 
@@ -15,12 +15,13 @@ The source code is available from Google code. The code can either be
 
 = Details =
 
-Add your content here.  Format your content with:
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other wiki pages
+The BuildKit is based on the following components:
+
+ * An Ant build script
+ * OSB configuration JAR is created by invoking Eclipse
+ * Deployment of configuration JAR is performed by WLST
 
 = Releases =
 
 || *Version* || *Changes* ||
-|| BuildKit.jar || Initial Release. ||
+|| [http://code.google.com/p/osbutils/downloads/detail?name=buildkit-0.1.zip&can=2&q= Version 0.1] || Initial Release. ||
