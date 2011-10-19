@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schema targetNamespace="http://www.example.org/bookstore" elementFormDefault="qualified" xmlns="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://www.example.org/bookstore">
+
+    <complexType name="BookType">
+    	<sequence>
+    		<element name="Title" type="string" minOccurs="1"
+    			maxOccurs="1">
+    		</element>
+    		<element name="Author" type="string" minOccurs="1"
+    			maxOccurs="unbounded">
+    		</element>
+    		<element name="Price" type="double" minOccurs="1"
+    			maxOccurs="1">
+    		</element>
+    		<element name="FirstPublished" type="date" minOccurs="0" maxOccurs="1"></element>
+    	</sequence>
+    	<attribute name="isbn" type="string" use="required"></attribute>
+    </complexType>
+
+    <complexType name="BookListType">
+    	<sequence>
+    		<element name="Book" type="tns:BookType" minOccurs="0" maxOccurs="unbounded"></element>
+    	</sequence>
+    </complexType>
+
+    <element name="Book" type="tns:BookType"></element>
+
+    <element name="BookList" type="tns:BookListType"></element>
+</schema>
