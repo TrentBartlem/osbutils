@@ -1,6 +1,14 @@
 <?xml version="1.0" encoding="windows-1252" ?>
 
 <!--
+	Hudson/Jenkins integration
+	===========================================================================
+	
+	Hudson/Jenkins provide two properties via environment variables that should
+	be considered during the build.
+	
+	WORKSPACE		The workspace directory containing projects to be built
+	BUILD_NUMBER	The build number from the build system perspective		
 -->
 
 <project name="OSBBuildKit" default="build">
@@ -24,22 +32,48 @@
 	<property file="./build.properties"/>
 	
 
+	
+
 	<!-- We need to be told where the Middleware Home is -->
 	<fail unless="fmw.home"			message="The required property 'fmw.home' has not been set." />
 
-	<!-- We need the workspace -->
-	<fail unless="env.WORKSPACE"	message="The required property 'env.WORKSPACE' has not been set." />
-
+	<!-- Include AntContrib tasks -->
 	<taskdef resource="net/sf/antcontrib/antcontrib.properties">
 		<classpath>
 			<pathelement path="${fmw.home}/modules/net.sf.antcontrib_1.1.0.0_1-0b2/lib/ant-contrib.jar"/>
 		</classpath>
 	</taskdef>
 	
-	<property name="eclipse.home"	value="${fmw.home}/oepe_11gR1PS2"/>
+	<!--
+	-->
+	<property name="eclipse.home"	value="${fmw.home}/oepe_11.1.1.8.0"/>
 	<property name="weblogic.home"	value="${fmw.home}/wlserver_10.3"/>
 	<property name="osb.home"		value="${fmw.home}/Oracle_OSB1"/>
+	
 
+	<!--
+		Allow the environment variable workspace to be used to specify the
+		workspace if the property has not been explicitly set. This allows
+		integration with Hudson/Jenkins which does this.
+	-->
+	<property name="workspace.dir"	value="${env.WORKSPACE}" />
+	
+	<!-- Find the configuration framework without a specific version -->
+	<path id="configfwk.path">
+		<fileset dir="${osb.home}/modules">
+			<include name="com.bea.common.configfwk_*.jar"/>
+		</fileset>		
+	</path>
+	<property name="configfwk" value="${toString:configfwk.path}" />
+	
+	<!-- Find the configuration framework without a specific version -->
+	<path id="eclipselauncher.path">
+		<fileset dir="${eclipse.home}/plugins">
+			<include name="org.eclipse.equinox.launcher_*.jar"/>
+		</fileset>		
+	</path>
+	<property name="eclipselauncher" value="${toString:eclipselauncher.path}" />
+	
 	<!--
 		The basic OSB classpath. This is used when invoking WLST to perform OSB
 		operations.
@@ -47,14 +81,62 @@
 	<path id="osb.class.path">
 		<pathelement path="${weblogic.home}/server/lib/weblogic.jar" />
 		<pathelement path="${osb.home}/lib/alsb.jar" />
-		<pathelement path="${osb.home}/modules/${configfwk}" />
+		<pathelement path="${configfwk}" />		
 	</path>
+
+	<!--
+	***************************************************************************
+	Configuration Targets
+	***************************************************************************
+	-->
+	
+	<!--
+		The build.number property can either be set outside of the buildkit by
+		either setting the environment variable BUILD_NUMBER or by specifying
+		the property explicitly in the build.properties. When running the
+		buildkit in standalone mode the following will create a file in the
+		workspace in order to track the build numbers.
+		1. The property 'build.number' set either in build.properties or passed
+		   via the -Dbuild.number argument
+		2. The environment variable BUILD_NUMBER
+		3. The build.number file in the workspace
+	-->
+	
+	<target name="buildnumber_env" if="env.BUILD_NUMBER" >
+		<echo message="build.number being set from the environment variable" />
+		<property name="build.number" value="${env.BUILD_NUMBER}" />
+	</target>
+		
+	<target name="buildnumber" depends="buildnumber_env" unless="build.number">
+		<echo message="build.number being set from the build.number file" />
+		<buildnumber file="${workspace.dir}/build.number" />
+	</target>	
 	
 	<!--
 	***************************************************************************
 	Build Targets
 	***************************************************************************
 	-->
+	
+	<target name="checkenv" depends="buildnumber">
+		<echo message="Product homes:" />
+		<echo message="  fmw.home:        ${fmw.home}" />
+		<echo message="  weblogic.home:   ${weblogic.home}" />
+		<echo message="  osb.home:        ${osb.home}" />
+		<echo message="  eclipse.home:    ${eclipse.home}" />
+		<echo message="" />
+		<echo message="Paths:" />
+		<echo message="  osb.class.path:  ${toString:osb.class.path}" />
+		<echo message="  cfgfwk:          ${configfwk}" />
+		<echo message="  eclipselauncher: ${eclipselauncher}" />
+		<echo message="" />
+		<echo message="Environment vars:" />
+		<echo message="  WORKSPACE:       ${env.WORKSPACE}" />
+		<echo message="  BUILD_NUMBER:    ${env.BUILD_NUMBER}" />
+		<echo message="" />
+		<echo message="Build parameters:" />
+		<echo message="  build.number:    ${build.number}" />
+	</target>
 	
 	<target name="exportFromOSB">
 		<wlst fileName="${domain.export.script}" debug="true" failOnError="false"  
@@ -90,23 +172,23 @@
 		<echo message="    url:   ${url}" />
 		<echo message="    local: ${local}" />
 		<echo message="    usr:   ${usr}" />
-		<echo message="    pwd:   ${pwd}" />
-		<echo message="    checking ${env.WORKSPACE}/${local}" />
+		<echo message="    pwd:   ********" />
+		<echo message="    checking ${workspace.dir}/${local}" />
 		<if>
-			<available file="${env.WORKSPACE}/${local}" />
+			<available file="${workspace.dir}/${local}" />
 			<then>
 				<echo message="Running svn in update mode" />
-				<exec executable="svn">
+				<exec executable="svn" dir="${workspace.dir}">
 					<arg value="up" />
-					<arg value="${env.WORKSPACE}/${local}" />
+					<arg value="${local}" />
 				</exec>
 			</then>
 			<else>
 				<echo message="Running svn in checkout mode" />
-				<exec executable="svn">
+				<exec executable="svn" dir="${workspace.dir}">
 					<arg value="co" />
 					<arg value="${url}" />
-					<arg value="${env.WORKSPACE}/${local}" />
+					<arg value="${local}" />
 				</exec>				
 			</else>
 		</if>
@@ -154,9 +236,11 @@
 		</java>
 		
 	</target>
+	
+
 
 	
-	<target name="build">
+	<target name="build" depends="buildnumber">
 		
 		<description>
 			Builds an OSB Configuration JAR.
@@ -165,17 +249,10 @@
 			directories.
 		</description>
 		
-		<!--
-			Allow the environment variable workspace to be used to specify the
-			workspace if the property has not been explicitly set. This allows
-			integration with Hudson/Jenkins which does this.
-		-->
-		<property name="workspace.dir"	value="${env.WORKSPACE}" />
-		<property name="buildnumber"	value="${env.BUILD_NUMBER}" />
-		
+	
 		<property name="output.dir"		value="${workspace.dir}/output" />
 		<property name="output.name"	value="${config.project}" />
-		<property name="config.jar"		value="${output.dir}/${output.name}_${buildnumber}_sbconfig.jar" />
+		<property name="config.jar"		value="${output.dir}/${output.name}_${build.number}_sbconfig.jar" />
 		<property name="config.includedeps"	value="true" />
 
 		<fail unless="workspace.dir" message="You must set the system property workspace.dir or the environment variable WORKSPACE" />
@@ -183,6 +260,7 @@
 		
 		<echo message="build::" />
 		<echo message="  workspace.dir:	${workspace.dir}" />
+		<echo message="  build.number:  ${build.number}" />
 		
 		<!-- Delete the metadata directory. Provides a cleaner build -->
 		<delete
@@ -190,7 +268,7 @@
 			includeemptydirs="true"
             dir="${workspace.dir}/.metadata" />
 		
-		
+		<!-- Make the output directory if it does not already exist -->
 		<mkdir dir="${output.dir}" />
 		
 		<!-- Clean the output directory. It will only ever contain the latest build -->
@@ -201,7 +279,7 @@
 		<!-- Invoke Eclipse in order to build the configuration JAR -->
 		<java
 			dir="${eclipse.home}"
-            jar="${eclipse.builder.jar}"
+            jar="${eclipselauncher}"
             fork="true" failonerror="true" maxmemory="768m" resultproperty="rc">
 				<jvmarg line="-XX:MaxPermSize=256m"/>   
 				<arg line="-data ${workspace.dir}"/>
@@ -217,6 +295,7 @@
 				<sysproperty key="osgi.bundlefile.limit" value="500"/>
 				<sysproperty key="harvester.home" value="${osb.home}/harvester"/>
 				<sysproperty key="osgi.nl" value="en_US"/>
+				<sysproperty key="middleware.home" value="${fmw.home}"/>
 				<sysproperty key="sun.lang.ClassLoader.allowArraySyntax" value="true"/>
 		</java>
 	</target>
