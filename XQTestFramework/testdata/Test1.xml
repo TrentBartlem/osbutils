@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<tns:Test attrA="attrA" xmlns:tns="http://www.example.org/test" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.example.org/test TestSchema.xsd ">
-  <tns:elemA>elemA</tns:elemA>
-  <tns:elemB>elemB</tns:elemB>
-</tns:Test>
