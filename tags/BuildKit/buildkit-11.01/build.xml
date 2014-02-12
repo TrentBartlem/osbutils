@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="windows-1252" ?>
+
+<!--
+	Hudson/Jenkins integration
+	===========================================================================
+	
+	Hudson/Jenkins provide two properties via environment variables that should
+	be considered during the build.
+	
+	WORKSPACE		The workspace directory containing projects to be built
+	BUILD_NUMBER	The build number from the build system perspective		
+-->
+
+<project name="OSBBuildKit" default="build">
+
+	<description>
+		This is an Ant build script that will allow
+	</description>
+		
+	<echo message="basedir: ${basedir}" />
+	
+	<!-- Environment variables will be available with the prefix "env" -->
+	<property environment="env" />
+	
+	<!--
+		The build properties can be overloaded with system properties. This
+		allows this build kit to support builds against different versions of
+		OSB if required.
+	-->
+	<property name="build.properties" value="build.properties" />
+	<echo message="build.properties: ${build.properties}" />
+	<property file="./build.properties"/>
+	
+
+	
+
+	<!-- We need to be told where the Middleware Home is -->
+	<fail unless="fmw.home"			message="The required property 'fmw.home' has not been set." />
+
+	<!-- Include AntContrib tasks -->
+	<taskdef resource="net/sf/antcontrib/antcontrib.properties">
+		<classpath>
+			<pathelement path="${fmw.home}/modules/net.sf.antcontrib_1.1.0.0_1-0b2/lib/ant-contrib.jar"/>
+		</classpath>
+	</taskdef>
+	
+	<!--
+	-->
+	<property name="eclipse.home"	value="${fmw.home}/oepe_11.1.1.8.0"/>
+	<property name="weblogic.home"	value="${fmw.home}/wlserver_10.3"/>
+	<property name="osb.home"		value="${fmw.home}/Oracle_OSB1"/>
+	
+
+	<!--
+		Allow the environment variable workspace to be used to specify the
+		workspace if the property has not been explicitly set. This allows
+		integration with Hudson/Jenkins which does this.
+	-->
+	<property name="workspace.dir"	value="${env.WORKSPACE}" />
+	
+	<!-- Find the configuration framework without a specific version -->
+	<path id="configfwk.path">
+		<fileset dir="${osb.home}/modules">
+			<include name="com.bea.common.configfwk_*.jar"/>
+		</fileset>		
+	</path>
+	<property name="configfwk" value="${toString:configfwk.path}" />
+	
+	<!-- Find the configuration framework without a specific version -->
+	<path id="eclipselauncher.path">
+		<fileset dir="${eclipse.home}/plugins">
+			<include name="org.eclipse.equinox.launcher_*.jar"/>
+		</fileset>		
+	</path>
+	<property name="eclipselauncher" value="${toString:eclipselauncher.path}" />
+	
+	<!--
+		The basic OSB classpath. This is used when invoking WLST to perform OSB
+		operations.
+	-->
+	<path id="osb.class.path">
+		<pathelement path="${weblogic.home}/server/lib/weblogic.jar" />
+		<pathelement path="${osb.home}/lib/alsb.jar" />
+		<pathelement path="${configfwk}" />		
+	</path>
+
+	<!--
+	***************************************************************************
+	Configuration Targets
+	***************************************************************************
+	-->
+	
+	<!--
+		The build.number property can either be set outside of the buildkit by
+		either setting the environment variable BUILD_NUMBER or by specifying
+		the property explicitly in the build.properties. When running the
+		buildkit in standalone mode the following will create a file in the
+		workspace in order to track the build numbers.
+		1. The property 'build.number' set either in build.properties or passed
+		   via the -Dbuild.number argument
+		2. The environment variable BUILD_NUMBER
+		3. The build.number file in the workspace
+	-->
+	
+	<target name="buildnumber_env" if="env.BUILD_NUMBER" >
+		<echo message="build.number being set from the environment variable" />
+		<property name="build.number" value="${env.BUILD_NUMBER}" />
+	</target>
+		
+	<target name="buildnumber" depends="buildnumber_env" unless="build.number">
+		<echo message="build.number being set from the build.number file" />
+		<buildnumber file="${workspace.dir}/build.number" />
+	</target>	
+	
+	<!--
+	***************************************************************************
+	Build Targets
+	***************************************************************************
+	-->
+	
+	<target name="checkenv" depends="buildnumber">
+		<echo message="Product homes:" />
+		<echo message="  fmw.home:        ${fmw.home}" />
+		<echo message="  weblogic.home:   ${weblogic.home}" />
+		<echo message="  osb.home:        ${osb.home}" />
+		<echo message="  eclipse.home:    ${eclipse.home}" />
+		<echo message="" />
+		<echo message="Paths:" />
+		<echo message="  osb.class.path:  ${toString:osb.class.path}" />
+		<echo message="  cfgfwk:          ${configfwk}" />
+		<echo message="  eclipselauncher: ${eclipselauncher}" />
+		<echo message="" />
+		<echo message="Environment vars:" />
+		<echo message="  WORKSPACE:       ${env.WORKSPACE}" />
+		<echo message="  BUILD_NUMBER:    ${env.BUILD_NUMBER}" />
+		<echo message="" />
+		<echo message="Build parameters:" />
+		<echo message="  build.number:    ${build.number}" />
+	</target>
+	
+	<target name="exportFromOSB">
+		<wlst fileName="${domain.export.script}" debug="true" failOnError="false"  
+              arguments="${wls.username} ${wls.password} ${wls.server} ${export.project} ${export.jar} ${export.customFile}">  
+
+		</wlst>
+	</target>
+
+	<target name="checkout">
+		<description>
+			Iterates over the subversion projects defined in the subversion.xml
+			file and calls the checkout_project target.
+			
+			Requires ant-contrib for the foreach task
+		</description>
+		<xmlproperty file="subversion.xml" collapseAttributes="true" keepRoot="true"/>
+		<foreach list="${subversion.projects}" target="checkout_project" param="project.name" inheritall="true"/>
+	</target>
+	
+	<target name="checkout_project">
+		<description>
+			Executes Subversion to either checkout or update a project.
+			
+			Requires: ant-contrib for the if then else tasks
+			Param: project.name The name of the project to process
+		</description>
+		<propertycopy property="url"   from="subversion.project.${project.name}.url"   />
+		<propertycopy property="local" from="subversion.project.${project.name}.local" />
+		<propertycopy property="usr"   from="subversion.project.${project.name}.user"  />
+		<propertycopy property="pwd"   from="subversion.project.${project.name}.pass"  />
+		<echo message="Checkout/Updating:"/>
+		<echo message="    name:  ${project.name}" />
+		<echo message="    url:   ${url}" />
+		<echo message="    local: ${local}" />
+		<echo message="    usr:   ${usr}" />
+		<echo message="    pwd:   ********" />
+		<echo message="    checking ${workspace.dir}/${local}" />
+		<if>
+			<available file="${workspace.dir}/${local}" />
+			<then>
+				<echo message="Running svn in update mode" />
+				<exec executable="svn" dir="${workspace.dir}">
+					<arg value="up" />
+					<arg value="${local}" />
+				</exec>
+			</then>
+			<else>
+				<echo message="Running svn in checkout mode" />
+				<exec executable="svn" dir="${workspace.dir}">
+					<arg value="co" />
+					<arg value="${url}" />
+					<arg value="${local}" />
+				</exec>				
+			</else>
+		</if>
+	</target>
+	
+	
+	<target name="deploy">
+	
+		<description>
+			Deploys an OSB configuration JAR to a server
+			
+			This target deploys an
+		</description>
+		
+		<!-- This should have been set if a build has been performed -->
+		<property name="import.jar"	value="${config.jar}" />
+		
+		<echo message="deploy::"/>
+		<echo message="    admin.username=${admin.username}" />
+		<echo message="    admin.password=${admin.password}" />
+		<echo message="    admin.url=${admin.url}" />
+		<echo message="    import.project=${import.project}" />
+		<echo message="    import.jar=${import.jar}" />
+		<echo message="    import.custfile=${import.custfile}" />
+		
+		<fail unless="import.jar" message="The JAR file to import must be specified in the property 'import.jar" />
+		
+		<!--
+			Invoke WLST to run the import.py script. We invoke it using the Ant
+			Java task rather than the WebLogic WLST task because this enables
+			us to set the classpath, rather than relying on an external party
+			setting the correct classpath when invoking Ant. In theory this is
+			a little simpler for callers.
+			
+			The import.py scripts accepts a number of positional arguments
+			which allow it to be driven by this Ant script. As such it is
+			important that we ensure that this script supplies the arguments in
+			the correct order.
+		-->
+		<java
+			classname="weblogic.WLST"
+			classpathref="osb.class.path"
+			fork="true" >
+				<arg line="import.py ${admin.username} ${admin.password} ${admin.url} ${import.jar} ${import.project} ${import.custfile}" />
+		</java>
+		
+	</target>
+	
+
+
+	
+	<target name="build" depends="buildnumber">
+		
+		<description>
+			Builds an OSB Configuration JAR.
+			
+			This target builds an OSB Configuration JAR from specified
+			directories.
+		</description>
+		
+	
+		<property name="output.dir"		value="${workspace.dir}/output" />
+		<property name="output.name"	value="${config.project}" />
+		<property name="config.jar"		value="${output.dir}/${output.name}_${build.number}_sbconfig.jar" />
+		<property name="config.includedeps"	value="true" />
+
+		<fail unless="workspace.dir" message="You must set the system property workspace.dir or the environment variable WORKSPACE" />
+		<fail unless="config.project"	message="The 'config.project' property must be set" />
+		
+		<echo message="build::" />
+		<echo message="  workspace.dir:	${workspace.dir}" />
+		<echo message="  build.number:  ${build.number}" />
+		
+		<!-- Delete the metadata directory. Provides a cleaner build -->
+		<delete
+			failonerror="false"
+			includeemptydirs="true"
+            dir="${workspace.dir}/.metadata" />
+		
+		<!-- Make the output directory if it does not already exist -->
+		<mkdir dir="${output.dir}" />
+		
+		<!-- Clean the output directory. It will only ever contain the latest build -->
+		<delete includeemptydirs="true">
+			<fileset dir="${output.dir}" includes="**/*"/>
+		</delete>
+		
+		<!-- Invoke Eclipse in order to build the configuration JAR -->
+		<java
+			dir="${eclipse.home}"
+            jar="${eclipselauncher}"
+            fork="true" failonerror="true" maxmemory="768m" resultproperty="rc">
+				<jvmarg line="-XX:MaxPermSize=256m"/>   
+				<arg line="-data ${workspace.dir}"/>
+				<arg line="-application com.bea.alsb.core.ConfigExport"/>
+				<arg line="-configProject ${config.project}"/>
+				<arg line="-configJar ${config.jar}"/>
+				<!--
+				<arg line="-configSubProjects ${config.subprojects}"/>
+				-->
+				<arg line="-includeDependencies ${config.includedeps}"/>
+				<sysproperty key="weblogic.home" value="${weblogic.home}"/>
+				<sysproperty key="osb.home" value="${osb.home}"/>
+				<sysproperty key="osgi.bundlefile.limit" value="500"/>
+				<sysproperty key="harvester.home" value="${osb.home}/harvester"/>
+				<sysproperty key="osgi.nl" value="en_US"/>
+				<sysproperty key="middleware.home" value="${fmw.home}"/>
+				<sysproperty key="sun.lang.ClassLoader.allowArraySyntax" value="true"/>
+		</java>
+	</target>
+
+
+</project>
