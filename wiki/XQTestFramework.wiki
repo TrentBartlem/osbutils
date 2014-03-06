@@ -2,7 +2,7 @@
 
 = Introduction =
 
-The XQTest Framework provides a framework for creating JUnit tests for XQuery transformations.
+The XQTest Framework provides a framework for creating JUnit tests for XQuery transformations *out of container*.
 
 = Downloads =
 
